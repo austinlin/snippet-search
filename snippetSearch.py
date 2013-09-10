@@ -1,22 +1,21 @@
+#!/usr/bin/env python
+
 import string, sys
 
 def snippetSearch(query, corpus):
-    """Returns the occurance of a search query
-
-    Given a page of content with alphanumeric words, and a search phrase of N words, write an algorithm that will return the shortest snippet of content that contains all N words in any order.
-    Example: The George Washington Bridge in New York City is one of the oldest bridges ever constructed. It is now being remodeled because the bridge is a landmark. City officials say that the landmark bridge effort will create a lot of new jobs in the city.
-    Search Terms: Landmark City Bridge
-    Result: bridge is a landmark. City"""
-
+    """Given a page of content with alphanumeric words, and a search phrase of N words, 
+    return the shortest snippet of content that contains all N words in any order.
+    """
     #generate an inverted index
-    #add all words into a hashtable with the key being the word and the value being it's index, chaining for multiple indices 
     corpusSplit = corpus.split(" ")
+    #normalize text, remove punctuation
     removePunc = corpus.translate(None, string.punctuation)
     corpusSplitRemovePunc = removePunc.lower().split(" ")
     corpusIndex = {}
+    #add all words into a hashtable with the key being the word and the value being it's index, chaining for multiple indices 
     for idx, val in enumerate(corpusSplitRemovePunc):
         if val in corpusIndex:
-            corpusIndex[val] = corpusIndex[val] + [idx]
+            corpusIndex[val].append(idx)
         else:
             corpusIndex[val] = [idx]    
     #for each word in search query see if there is a match in index
@@ -25,10 +24,8 @@ def snippetSearch(query, corpus):
     query = query.lower().split(" ")
     for word in query:
         if word in corpusIndex:
-    #snippetIndices = findSmallestRange(tempWordIndex)
             wordIndex.append([word, corpusIndex[word]])
-    #print "Word Index: " + str(wordIndex)
-    
+    #perform search function and return joined result
     snippetIndices = findSmallestRange(wordIndex)
     snippet = []
     for item in range(snippetIndices[0], snippetIndices[1]+1):
@@ -36,66 +33,46 @@ def snippetSearch(query, corpus):
     return " ".join(snippet)
 
 def findSmallestRange(wordIndex):
-    """Finds the smallest range that contains all search terms
+    """Finds the smallest range that contains all search terms, core logic for search function
     input:  [['landmark', [32]], 
             ['city', [7, 27]], 
             ['bridge', [3, 23, 33]]]
     output: 27, 33
     """
-    wordPositions = []
-    doneTracker = []
-    currentPos = []
+    #initialize data structures with variable length depending on occurrences of each query term
+    wordPositions = [] #indicies of the query terms in corpus
+    doneTracker = [] #booleans that are false if there are more positions within a term that haven't been iterated
+    currentPos = [] #current position within wordPositions
     for index, value in enumerate(wordIndex):
         wordPositions += [wordIndex[index][1]]
         doneTracker += [False]
         currentPos += [0]
-    
     minRange = sys.maxint
-
     while(True):
+        #exit loop if all positions have been compared for a query term
         if not False in doneTracker:
             break
-        currentValues = getIndexValues(wordPositions, currentPos) #0,95,70
-        minValue = sys.maxint 
+        #retrieve the current set of indicies to compare, one for each query term
+        currentValues = getIndexValues(wordPositions, currentPos)
+        minValue = sys.maxint
+        #find lowest of the index values within the current set
         for idx, elem in enumerate(doneTracker):
             if not doneTracker[idx]:
                 if currentValues[idx] < minValue:
                     minValue = currentValues[idx]
-        listWithMinValue = currentValues.index(minValue) # 0
+        listWithMinValue = currentValues.index(minValue)
+        #increment the pointer to the term with the lowest value or mark as done if all values for a term have been compared
         if currentPos[listWithMinValue] + 1 < len(wordPositions[listWithMinValue]):
             currentPos[listWithMinValue] += 1
         else:
             doneTracker[listWithMinValue] = True
+        #keep track of the minimum range for each set compared and return lowest when all are done
         curRange = getListRange(getIndexValues(wordPositions, currentPos))
         if curRange < minRange:
             minRange = curRange
             resPos = getIndexValues(wordPositions, currentPos)
             resRange = getListRange(resPos)    
     return (min(resPos), max(resPos))
-
-def newCounterPos(positionLists, currentPos):
-    '''returns the new counterPosition given a set of positions and a list of current positions
-    uses logic in increment the index of the list with the min value
-    allows iteration through multiple lists of different length
-    input: [[0, 89, 130], [95, 123, 177, 199], [70, 105, 117]], [0,0,0] 0, 95, 70
-    output: 1 -> you know to increment the first list
-    input: [[0, 89, 130], [95, 123, 177, 199], [70, 105, 117]], [2,2,0]
-    output: 3 -> you know to increment the first list
-    returns None when all values have been checked
-    '''
-    if len(positionLists) == 0:
-        return None
-    newPos = currentPos
-    currentValues = getIndexValues(positionLists, currentPos) #0,95,70
-    minValue = min(currentValues) #0
-    listWithMinValue = currentValues.index(minValue) # 0
-    if currentPos[listWithMinValue] + 1 < len(positionLists[listWithMinValue]):
-        newPos[listWithMinValue] += 1
-    else:
-       del positionLists[listWithMinValue]
-       print positionLists
-       newCounterPos(positionLists, currentPos)
-    return newPos
     
 def getListRangeIndices(l):
     '''returns the upper and lower bound of indices given a list'''
@@ -117,9 +94,6 @@ def getIndexValues(positions, indices):
 
 if __name__ == '__main__':
     corpus = "The George Washington Bridge in New York City is one of the oldest bridges ever constructed. It is now being remodeled because the bridge is a landmark. City officials say that the landmark bridge effort will create a lot of new jobs in the city."
-    query = "Landmark City Bridge jobs in"
+    query = "Landmark City Bridge"
     print "query: " + str(query)
-    print "result snippet: " + snippetSearch(query, corpus)
-
-    
-    
+    print "result snippet: " + snippetSearch(query, corpus * int(sys.argv[1]))
